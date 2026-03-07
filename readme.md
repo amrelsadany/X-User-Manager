@@ -1,4 +1,4 @@
-# Link Manager 🔗
+# X Link Manager 🔗
 
 A full-stack link management application for saving and organizing links, especially X (Twitter) profiles, across desktop and mobile devices. Features dual backend support for both local development and cloud deployment.
 
