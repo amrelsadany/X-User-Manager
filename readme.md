@@ -19,7 +19,7 @@ A full-stack link management application for saving and organizing links, especi
 ## 📁 Project Structure
 
 ```
-x-linkmanager/
+x-link-manager/
 ├── frontend/              # React application
 │   ├── index.html
 │   ├── LinkManager.jsx
@@ -65,8 +65,8 @@ x-linkmanager/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/amrelsadany/x-linkmanager.git
-cd x-linkmanager
+git clone https://github.com/amrelsadany/x-link-manager.git
+cd x-link-manager
 
 # 2. Set up Express backend
 cd express-backend
@@ -522,15 +522,15 @@ copies or substantial portions of the Software.
 ## 📞 Support
 
 - 📧 Email: elsadany_94@hotmail.com
-- 🐛 Issues: [GitHub Issues](https://github.com/amrelsadany/x-linkmanager/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/amrelsadany/x-linkmanager/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/amrelsadany/x-link-manager/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/amrelsadany/x-link-manager/discussions)
 
 ## 📊 Stats
 
-![GitHub stars](https://img.shields.io/github/stars/amrelsadany/x-linkmanager?style=social)
-![GitHub forks](https://img.shields.io/github/forks/amrelsadany/x-linkmanager?style=social)
-![GitHub issues](https://img.shields.io/github/issues/amrelsadany/x-linkmanager)
-![GitHub license](https://img.shields.io/github/license/amrelsadany/x-linkmanager)
+![GitHub stars](https://img.shields.io/github/stars/amrelsadany/x-link-manager?style=social)
+![GitHub forks](https://img.shields.io/github/forks/amrelsadany/x-link-manager?style=social)
+![GitHub issues](https://img.shields.io/github/issues/amrelsadany/x-link-manager)
+![GitHub license](https://img.shields.io/github/license/amrelsadany/x-link-manager)
 
 ---
 
