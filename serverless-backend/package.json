@@ -1,0 +1,15 @@
+{
+  "name": "linkmanager-serverless",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Serverless backend for Link Manager",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "mongoose": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
