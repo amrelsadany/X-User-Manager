@@ -2,23 +2,75 @@ require('dotenv').config();
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Security: Helmet
+app.use(helmet());
 
-// MongoDB connection string - Can be configured via .env file
+// Security: Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
+
+// Stricter rate limit for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5, // Only 5 login attempts per 15 minutes
+  message: 'Too many login attempts, please try again later.',
+});
+
+// Security: Sanitize data
+app.use(mongoSanitize());
+
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://your-frontend.vercel.app',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'CORS policy does not allow access from this origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+app.use(express.json({ limit: '10mb' }));
+
+// MongoDB configuration
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017';
-const DB_NAME = process.env.DB_NAME || 'linksdb';
-const LINKS_COLLECTION = process.env.LINKS_COLLECTION || 'users';
-const OPENED_LINKS_COLLECTION = process.env.OPENED_LINKS_COLLECTION || 'opened_links';
+const DB_NAME = process.env.DB_NAME || 'usersdb';
+const USERS_COLLECTION = process.env.USERS_COLLECTION || 'users';
+const AUTH_USERS_COLLECTION = 'auth_users'; // New collection for authenticated users
+
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+const JWT_EXPIRES_IN = '7d'; // Token expires in 7 days
 
 let db;
-let linksCollection;
-let openedLinksCollection;
+let usersCollection;
+let authUsersCollection;
 
 // Connect to MongoDB
 async function connectToDatabase() {
@@ -28,194 +80,542 @@ async function connectToDatabase() {
     console.log('Connected to MongoDB');
     
     db = client.db(DB_NAME);
-    linksCollection = db.collection(LINKS_COLLECTION); // Collection with link URLs
-    openedLinksCollection = db.collection(OPENED_LINKS_COLLECTION); // Collection tracking opened links
+    usersCollection = db.collection(USERS_COLLECTION);
+    authUsersCollection = db.collection(AUTH_USERS_COLLECTION);
+
+    // Create indexes
+    await usersCollection.createIndex({ url: 1 }, { unique: true });
+    await usersCollection.createIndex({ createdAt: -1 });
+    await authUsersCollection.createIndex({ email: 1 }, { unique: true });
+    await authUsersCollection.createIndex({ username: 1 }, { unique: true });
+    
+    // Create default admin user if none exists
+    await createDefaultAdmin();
+    
   } catch (error) {
     console.error('MongoDB connection error:', error);
     process.exit(1);
   }
 }
 
-// Create a new link
-app.post('/api/links', async (req, res) => {
+// Create default admin user
+async function createDefaultAdmin() {
   try {
-    const { username, url, userId } = req.body;
+    const adminExists = await authUsersCollection.findOne({ role: 'admin' });
     
-    // Validate required fields
-    if (!url || url.trim() === '') {
-      return res.status(400).json({ error: 'URL is required' });
+    if (!adminExists) {
+      const defaultPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      
+      await authUsersCollection.insertOne({
+        username: 'admin',
+        email: process.env.ADMIN_EMAIL || 'admin@example.com',
+        password: hashedPassword,
+        role: 'admin',
+        createdAt: new Date(),
+        isActive: true
+      });
+      
+      console.log('✅ Default admin user created');
+      console.log('   Email:', process.env.ADMIN_EMAIL || 'admin@example.com');
+      console.log('   Password:', defaultPassword);
+      console.log('   ⚠️  CHANGE THIS PASSWORD IMMEDIATELY!');
+    }
+  } catch (error) {
+    console.error('Error creating default admin:', error);
+  }
+}
+
+// JWT Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Input validation
+function validateUrl(url) {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str.trim().substring(0, 500);
+}
+
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function validatePassword(password) {
+  // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  return passwordRegex.test(password);
+}
+
+// ============================================
+// AUTH ROUTES
+// ============================================
+
+// Register new user (can be disabled in production)
+app.post('/api/auth/register', authLimiter, async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    // Validate inputs
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (!validatePassword(password)) {
+      return res.status(400).json({ 
+        error: 'Password must be at least 8 characters with uppercase, lowercase, and number' 
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await authUsersCollection.findOne({
+      $or: [{ email }, { username }]
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ 
+        error: existingUser.email === email ? 'Email already registered' : 'Username already taken'
+      });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const newUser = {
+      username: sanitizeInput(username),
+      email: sanitizeInput(email.toLowerCase()),
+      password: hashedPassword,
+      role: 'user',
+      createdAt: new Date(),
+      isActive: true
+    };
+
+    const result = await authUsersCollection.insertOne(newUser);
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: result.insertedId.toString(),
+        username: newUser.username,
+        email: newUser.email,
+        role: newUser.role
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      token,
+      user: {
+        id: result.insertedId,
+        username: newUser.username,
+        email: newUser.email,
+        role: newUser.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Failed to register user' });
+  }
+});
+
+// Login
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // Find user
+    const user = await authUsersCollection.findOne({ 
+      email: sanitizeInput(email.toLowerCase())
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Account is disabled' });
+    }
+
+    // Verify password
+    const validPassword = await bcrypt.compare(password, user.password);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { 
+        id: user._id.toString(),
+        username: user.username,
+        email: user.email,
+        role: user.role
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    // Update last login
+    await authUsersCollection.updateOne(
+      { _id: user._id },
+      { $set: { lastLogin: new Date() } }
+    );
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// Verify token (for checking if user is still logged in)
+app.get('/api/auth/verify', authenticateToken, async (req, res) => {
+  try {
+    const user = await authUsersCollection.findOne(
+      { _id: new ObjectId(req.user.id) },
+      { projection: { password: 0 } }
+    );
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ error: 'User not found or inactive' });
+    }
+
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Verify error:', error);
+    res.status(500).json({ error: 'Failed to verify token' });
+  }
+});
+
+// Change password
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+
+    if (!validatePassword(newPassword)) {
+      return res.status(400).json({ 
+        error: 'New password must be at least 8 characters with uppercase, lowercase, and number' 
+      });
+    }
+
+    // Get user
+    const user = await authUsersCollection.findOne({ _id: new ObjectId(req.user.id) });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    const validPassword = await bcrypt.compare(currentPassword, user.password);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await authUsersCollection.updateOne(
+      { _id: new ObjectId(req.user.id) },
+      { $set: { password: hashedPassword, updatedAt: new Date() } }
+    );
+
+    res.json({ message: 'Password changed successfully' });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// ============================================
+// USERS ROUTES (Protected)
+// ============================================
+
+// Apply authentication to all /api/users routes
+app.use('/api/users', authenticateToken);
+
+// Get all unread users
+app.get('/api/users', async (req, res) => {
+  try {
+    const unreadUsers = await usersCollection.find({ 
+      isRead: false 
+    })
+    .sort({ createdAt: -1 })
+    .limit(1000)
+    .toArray();
+    
+    res.json(unreadUsers);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get all users
+app.get('/api/users/all', async (req, res) => {
+  try {
+    const allUsers = await usersCollection.find({})
+      .sort({ createdAt: -1 })
+      .limit(1000)
+      .toArray();
+    
+    res.json(allUsers);
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Create new user
+app.post('/api/users', async (req, res) => {
+  try {
+    const { username, url, userId, title } = req.body;
+    
+    if (!url || !validateUrl(url)) {
+      return res.status(400).json({ error: 'Valid URL is required' });
     }
     
-    // Check if URL already exists
-    const existingLink = await linksCollection.findOne({ url: url.trim() });
-    if (existingLink) {
+    const sanitizedData = {
+      url: sanitizeInput(url),
+      title: sanitizeInput(title || (username ? `@${username}` : '')),
+      username: sanitizeInput(username || ''),
+      userId: sanitizeInput(userId || ''),
+      createdAt: new Date(),
+      createdBy: req.user.id, // Track who created it
+      isRead: false
+    };
+    
+    const existingUser = await usersCollection.findOne({ url: sanitizedData.url });
+    if (existingUser) {
       return res.status(409).json({ 
         error: 'This URL already exists',
-        existingLink: existingLink
+        existingUser: existingUser
       });
     }
     
-    // Build new link object
-    const newLink = {
-      username: username ? username.trim() : '',
-      url: url.trim(),
-      userId: userId || null
-    };
-    
-    // Insert the new link
-    const result = await linksCollection.insertOne(newLink);
-    
-    // Get the inserted link with its _id
-    const insertedLink = await linksCollection.findOne({ _id: result.insertedId });
+    const result = await usersCollection.insertOne(sanitizedData);
+    const insertedUser = await usersCollection.findOne({ _id: result.insertedId });
     
     res.status(201).json({ 
-      message: 'Link created successfully', 
-      link: insertedLink 
+      message: 'User created successfully', 
+      user: insertedUser 
     });
   } catch (error) {
-    console.error('Error creating link:', error);
-    res.status(500).json({ error: 'Failed to create link' });
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
   }
 });
 
-// Get all unread links
-app.get('/api/links', async (req, res) => {
+// Mark user as read
+app.post('/api/users/:id/mark-read', async (req, res) => {
   try {
-    // Get all links from users collection where url is not empty
-    const allLinks = await linksCollection.find({ 
-      url: { $exists: true, $ne: "" } 
-    }).toArray();
+    const userId = req.params.id;
     
-    // Get all opened link IDs
-    const openedLinks = await openedLinksCollection.find({}).toArray();
-    const openedLinkIds = new Set(openedLinks.map(link => link.linkId.toString()));
-    
-    // Filter out opened links
-    const unreadLinks = allLinks.filter(link => !openedLinkIds.has(link._id.toString()));
-    
-    res.json(unreadLinks);
-  } catch (error) {
-    console.error('Error fetching links:', error);
-    res.status(500).json({ error: 'Failed to fetch links' });
-  }
-});
-
-// Mark link as opened
-app.post('/api/links/:id/mark-opened', async (req, res) => {
-  try {
-    const linkId = req.params.id;
-    
-    // Check if already marked as opened
-    const existing = await openedLinksCollection.findOne({ 
-      linkId: new ObjectId(linkId) 
-    });
-    
-    if (existing) {
-      return res.json({ message: 'Link already marked as opened', existing });
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
     }
     
-    // Insert into opened_links collection
-    const result = await openedLinksCollection.insertOne({
-      linkId: new ObjectId(linkId),
-      openedAt: new Date()
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { 
+        $set: { 
+          isRead: true, 
+          readAt: new Date(),
+          readBy: req.user.id // Track who marked it
+        } 
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const updatedUser = await usersCollection.findOne({ 
+      _id: new ObjectId(userId) 
     });
     
     res.json({ 
-      message: 'Link marked as opened', 
-      result 
+      message: 'User marked as read', 
+      user: updatedUser 
     });
   } catch (error) {
-    console.error('Error marking link as opened:', error);
-    res.status(500).json({ error: 'Failed to mark link as opened' });
+    console.error('Error marking user as read:', error);
+    res.status(500).json({ error: 'Failed to mark user as read' });
   }
 });
 
-// Update/Edit a link
-app.put('/api/links/:id', async (req, res) => {
+// Update user
+app.put('/api/users/:id', async (req, res) => {
   try {
-    const linkId = req.params.id;
-    const { username, url, userId } = req.body;
+    const userId = req.params.id;
+    const { username, url, userId: userIdField, title, isRead } = req.body;
     
-    // Validate required fields
-    if (!url || url.trim() === '') {
-      return res.status(400).json({ error: 'URL is required' });
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
     }
     
-    // Build update object
-    const updateData = {
-      url: url.trim()
-    };
+    if (url && !validateUrl(url)) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
     
-    // Add optional fields if provided
+    const updateData = {};
+    
+    if (url !== undefined) updateData.url = sanitizeInput(url);
     if (username !== undefined) {
-      updateData.username = username.trim();
+      updateData.username = sanitizeInput(username);
+      if (!title && username) {
+        updateData.title = `@${sanitizeInput(username)}`;
+      }
     }
-    if (userId !== undefined) {
-      updateData.userId = userId;
-    }
+    if (userIdField !== undefined) updateData.userId = sanitizeInput(userIdField);
+    if (title !== undefined) updateData.title = sanitizeInput(title);
+    if (isRead !== undefined) updateData.isRead = Boolean(isRead);
     
-    // Update the link
-    const result = await linksCollection.updateOne(
-      { _id: new ObjectId(linkId) },
+    updateData.updatedAt = new Date();
+    updateData.updatedBy = req.user.id;
+    
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
       { $set: updateData }
     );
     
     if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'Link not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
     
-    // Get the updated link
-    const updatedLink = await linksCollection.findOne({ _id: new ObjectId(linkId) });
+    const updatedUser = await usersCollection.findOne({ 
+      _id: new ObjectId(userId) 
+    });
     
     res.json({ 
-      message: 'Link updated successfully', 
-      link: updatedLink 
+      message: 'User updated successfully', 
+      user: updatedUser 
     });
   } catch (error) {
-    console.error('Error updating link:', error);
-    res.status(500).json({ error: 'Failed to update link' });
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
   }
 });
 
-// Delete a link
-app.delete('/api/links/:id', async (req, res) => {
+// Delete user
+app.delete('/api/users/:id', async (req, res) => {
   try {
-    const linkId = req.params.id;
+    const userId = req.params.id;
     
-    // Delete the link
-    const result = await linksCollection.deleteOne({ _id: new ObjectId(linkId) });
+    if (!ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+    
+    const result = await usersCollection.deleteOne({ 
+      _id: new ObjectId(userId) 
+    });
     
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: 'Link not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
     
-    // Also delete any opened_links entries for this link (cleanup)
-    await openedLinksCollection.deleteMany({ linkId: new ObjectId(linkId) });
-    
     res.json({ 
-      message: 'Link deleted successfully',
-      deletedId: linkId
+      message: 'User deleted successfully',
+      deletedId: userId
     });
   } catch (error) {
-    console.error('Error deleting link:', error);
-    res.status(500).json({ error: 'Failed to delete link' });
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
-// Optional: Get all opened links (for reference)
-app.get('/api/opened-links', async (req, res) => {
-  try {
-    const openedLinks = await openedLinksCollection.find({}).toArray();
-    res.json(openedLinks);
-  } catch (error) {
-    console.error('Error fetching opened links:', error);
-    res.status(500).json({ error: 'Failed to fetch opened links' });
-  }
+// Health check (public)
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    message: 'User Manager API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
 });
 
 // Start server
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🔒 JWT Authentication: Enabled`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  process.exit(0);
 });

@@ -1,11 +1,19 @@
 import mongoose from 'mongoose';
 
-const linkSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   url: {
     type: String,
     required: true,
   },
   title: {
+    type: String,
+    default: '',
+  },
+  username: {
+    type: String,
+    default: '',
+  },
+  userId: {
     type: String,
     default: '',
   },
@@ -20,4 +28,4 @@ const linkSchema = new mongoose.Schema({
 });
 
 // Prevent model recompilation in serverless environment
-export default mongoose.models.Link || mongoose.model('Link', linkSchema);
+export default mongoose.models.User || mongoose.model('User', userSchema);

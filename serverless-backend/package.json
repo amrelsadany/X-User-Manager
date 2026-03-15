@@ -1,15 +1,18 @@
 {
-  "name": "linkmanager-serverless",
+  "name": "user-manager-backend",
   "version": "1.0.0",
-  "type": "module",
-  "description": "Serverless backend for Link Manager",
+  "description": "Serverless backend for User Manager with JWT authentication",
+  "main": "api/index.js",
   "scripts": {
-    "dev": "vercel dev"
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
   },
   "dependencies": {
-    "mongoose": "^8.0.0"
+    "mongodb": "^6.3.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.x"
   }
 }

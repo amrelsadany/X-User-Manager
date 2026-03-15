@@ -1,5 +1,5 @@
 import { connectDB } from '../lib/db.js';
-import Link from '../models/Link.js';
+import User from '../models/User.js';
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -20,31 +20,33 @@ export default async function handler(req, res) {
   try {
     await connectDB();
 
-    const { url, title } = req.body;
+    const { url, title, username, userId } = req.body;
 
     if (!url) {
       return res.status(400).json({ error: 'URL is required' });
     }
 
     // Check for duplicates
-    const existingLink = await Link.findOne({ url });
-    if (existingLink) {
+    const existingUser = await User.findOne({ url });
+    if (existingUser) {
       return res.status(409).json({ 
-        error: 'Link already exists',
-        existing: existingLink 
+        error: 'User already exists',
+        existing: existingUser 
       });
     }
 
-    const newLink = new Link({
+    const newUser = new User({
       url,
-      title: title || '',
+      title: title || (username ? `@${username}` : ''),
+      username: username || '',
+      userId: userId || '',
       isRead: false
     });
 
-    await newLink.save();
-    return res.status(201).json(newLink);
+    await newUser.save();
+    return res.status(201).json(newUser);
   } catch (error) {
-    console.error('Error adding link:', error);
-    return res.status(500).json({ error: 'Failed to add link' });
+    console.error('Error adding user:', error);
+    return res.status(500).json({ error: 'Failed to add user' });
   }
 }
