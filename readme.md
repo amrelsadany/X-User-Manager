@@ -1,16 +1,16 @@
-# X Link Manager 🔗
+# X User Manager 🔗
 
-A full-stack link management application for saving and organizing links, especially X (Twitter) profiles, across desktop and mobile devices. Features dual backend support for both local development and cloud deployment.
+A full-stack user management application for saving and organizing users, especially X (Twitter) profiles, across desktop and mobile devices. Features dual backend support for both local development and cloud deployment.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/linkmanager)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/usermanager)
 
 ## ✨ Features
 
-- 💾 **Save Links** - Store URLs with automatic username extraction
+- 💾 **Save users** - Store URLs with automatic username extraction
 - 🐦 **Track X Profiles** - Save Twitter/X profiles with one tap (iOS Shortcut included)
-- ✅ **Read/Unread Status** - Mark links as read or unread
-- 🗑️ **Link Management** - Edit and delete links
-- 🔄 **Duplicate Detection** - Automatically prevents duplicate links
+- ✅ **Read/Unread Status** - Mark users as read or unread
+- 🗑️ **user Management** - Edit and delete users
+- 🔄 **Duplicate Detection** - Automatically prevents duplicate users
 - 📱 **Mobile Support** - iOS Shortcut for saving profiles on the go
 - 🌐 **Cross-Platform** - Works on desktop and mobile
 - 🔄 **Auto-Sync** - All devices stay in sync via cloud database
@@ -19,10 +19,10 @@ A full-stack link management application for saving and organizing links, especi
 ## 📁 Project Structure
 
 ```
-x-link-manager/
+x-user-manager/
 ├── frontend/              # React application
 │   ├── index.html
-│   ├── LinkManager.jsx
+│   ├── userManager.jsx
 │   └── README.md
 │
 ├── backend/               # Serverless API (Vercel Functions)
@@ -65,8 +65,8 @@ x-link-manager/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/amrelsadany/x-link-manager.git
-cd x-link-manager
+git clone https://github.com/amrelsadany/x-user-manager.git
+cd x-user-manager
 
 # 2. Set up Express backend
 cd express-backend
@@ -101,7 +101,7 @@ cp .env.example .env
 # Add your MongoDB connection string to .env
 # MONGODB_URI=mongodb://localhost:27017
 # or
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/linkmanager
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/usermanager
 
 # Start server
 npm start
@@ -144,7 +144,7 @@ Save X profiles from your iPhone with one tap!
 
 3. Configure API URL:
    ```
-   https://your-backend-url.vercel.app/api/add-link
+   https://your-backend-url.vercel.app/api/add-user
    ```
 
 4. Enable "Show in Share Sheet"
@@ -179,7 +179,7 @@ Save X profiles from your iPhone with one tap!
 2. Create free cluster (M0)
 3. Get connection string:
    ```
-   mongodb+srv://username:password@cluster.mongodb.net/linkmanager
+   mongodb+srv://username:password@cluster.mongodb.net/usermanager
    ```
 4. Add to environment variables
 
@@ -188,31 +188,31 @@ Save X profiles from your iPhone with one tap!
 ### Express Backend (Local - Port 3001)
 
 ```
-GET    /api/links                   # Get all unread links
-POST   /api/links                   # Add new link
-POST   /api/links/:id/mark-opened  # Mark link as opened
-PUT    /api/links/:id              # Update link
-DELETE /api/links/:id              # Delete link
-GET    /api/opened-links           # Get all opened links
+GET    /api/users                   # Get all unread users
+POST   /api/users                   # Add new user
+POST   /api/users/:id/mark-opened  # Mark user as opened
+PUT    /api/users/:id              # Update user
+DELETE /api/users/:id              # Delete user
+GET    /api/opened-users           # Get all opened users
 ```
 
 ### Serverless Backend (Cloud - Vercel)
 
 ```
-GET    /api/links                   # Get all links
-POST   /api/add-link               # Add new link
+GET    /api/users                   # Get all users
+POST   /api/add-user               # Add new user
 PATCH  /api/mark-read?id=xxx       # Mark as read/unread
-DELETE /api/delete-link?id=xxx     # Delete link
+DELETE /api/delete-user?id=xxx     # Delete user
 GET    /api/get-user-id?username=x # Get X user ID (optional)
 ```
 
 ## 📚 API Documentation
 
-### Add Link
+### Add user
 
 **Express:**
 ```bash
-curl -X POST http://localhost:3001/api/links \
+curl -X POST http://localhost:3001/api/users \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://x.com/jack",
@@ -222,7 +222,7 @@ curl -X POST http://localhost:3001/api/links \
 
 **Serverless:**
 ```bash
-curl -X POST https://your-api.vercel.app/api/add-link \
+curl -X POST https://your-api.vercel.app/api/add-user \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://x.com/jack",
@@ -242,24 +242,24 @@ curl -X POST https://your-api.vercel.app/api/add-link \
 }
 ```
 
-### Get All Links
+### Get All users
 
 ```bash
 # Express
-curl http://localhost:3001/api/links
+curl http://localhost:3001/api/users
 
 # Serverless
-curl https://your-api.vercel.app/api/links
+curl https://your-api.vercel.app/api/users
 ```
 
-### Delete Link
+### Delete user
 
 ```bash
 # Express
-curl -X DELETE http://localhost:3001/api/links/LINK_ID
+curl -X DELETE http://localhost:3001/api/users/user_ID
 
 # Serverless
-curl -X DELETE "https://your-api.vercel.app/api/delete-link?id=LINK_ID"
+curl -X DELETE "https://your-api.vercel.app/api/delete-user?id=user_ID"
 ```
 
 ## 🚀 Deployment
@@ -281,7 +281,7 @@ git push origin main
 4. Add environment variable:
    - `MONGODB_URI` = your MongoDB Atlas connection string
 5. Click "Deploy"
-6. Copy your backend URL (e.g., `https://linkmanager-api.vercel.app`)
+6. Copy your backend URL (e.g., `https://usermanager-api.vercel.app`)
 
 #### 2. Deploy Frontend
 
@@ -289,20 +289,20 @@ git push origin main
 2. Import the **same** repository
 3. **Set Root Directory:** `frontend`
 4. Click "Deploy"
-5. Your frontend is live! (e.g., `https://linkmanager.vercel.app`)
+5. Your frontend is live! (e.g., `https://usermanager.vercel.app`)
 
 #### 3. Connect Frontend to Backend
 
-Edit `frontend/LinkManager.jsx` (around line 15):
+Edit `frontend/userManager.jsx` (around line 15):
 
 ```javascript
 // Update this line with your actual backend URL
-return 'https://linkmanager-api.vercel.app/api';
+return 'https://usermanager-api.vercel.app/api';
 ```
 
 Push changes:
 ```bash
-git add frontend/LinkManager.jsx
+git add frontend/userManager.jsx
 git commit -m "Update backend URL"
 git push
 ```
@@ -314,15 +314,15 @@ Vercel will auto-redeploy frontend with the new changes!
 #### Express Backend (.env)
 ```bash
 PORT=3001
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/linkmanager
-DB_NAME=linksdb
-LINKS_COLLECTION=users
-OPENED_LINKS_COLLECTION=opened_links
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/usermanager
+DB_NAME=usersdb
+userS_COLLECTION=users
+OPENED_userS_COLLECTION=opened_users
 ```
 
 #### Serverless Backend (Vercel Dashboard)
 ```bash
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/linkmanager
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/usermanager
 ```
 
 ## 🧪 Testing
@@ -334,10 +334,10 @@ cd express-backend
 npm start
 
 # Test in another terminal
-curl http://localhost:3001/api/links
+curl http://localhost:3001/api/users
 
-# Add a link
-curl -X POST http://localhost:3001/api/links \
+# Add a user
+curl -X POST http://localhost:3001/api/users \
   -H "Content-Type: application/json" \
   -d '{"url":"https://x.com/jack","username":"jack"}'
 ```
@@ -345,10 +345,10 @@ curl -X POST http://localhost:3001/api/links \
 ### Test Serverless Backend
 ```bash
 # Test deployed backend
-curl https://your-api.vercel.app/api/links
+curl https://your-api.vercel.app/api/users
 
-# Add a link
-curl -X POST https://your-api.vercel.app/api/add-link \
+# Add a user
+curl -X POST https://your-api.vercel.app/api/add-user \
   -H "Content-Type: application/json" \
   -d '{"url":"https://x.com/jack","username":"jack"}'
 ```
@@ -388,7 +388,7 @@ No manual configuration needed!
 
 The backend automatically prevents duplicate URLs:
 - Checks if URL already exists before saving
-- Returns `409 Conflict` status with existing link data
+- Returns `409 Conflict` status with existing user data
 - Frontend shows confirmation dialog for duplicates
 
 ## 📖 Documentation
@@ -402,9 +402,9 @@ The backend automatically prevents duplicate URLs:
 ## 🛣️ Roadmap
 
 ### Current Features
-- ✅ Save links with URL and username
+- ✅ Save users with URL and username
 - ✅ Mark as read/unread
-- ✅ Delete links
+- ✅ Delete users
 - ✅ Duplicate detection
 - ✅ iOS Shortcut integration
 - ✅ Dual backend support (Express + Serverless)
@@ -461,7 +461,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 **Solution:**
 1. Check backend is running (Express: `npm start`)
-2. Verify API URL in `LinkManager.jsx`
+2. Verify API URL in `userManager.jsx`
 3. Check browser console for CORS errors
 4. Ensure backend is deployed (if using Vercel)
 
@@ -475,7 +475,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 3. Verify database user credentials
 4. Test connection string locally first
 
-### Duplicate Links Not Detected
+### Duplicate users Not Detected
 
 **Problem:** Same URL can be saved multiple times
 
@@ -487,7 +487,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### iOS Shortcut Not Working
 
-**Problem:** Shortcut fails to save links
+**Problem:** Shortcut fails to save users
 
 **Solution:**
 1. Verify API URL in shortcut matches deployed backend
@@ -522,18 +522,18 @@ copies or substantial portions of the Software.
 ## 📞 Support
 
 - 📧 Email: elsadany_94@hotmail.com
-- 🐛 Issues: [GitHub Issues](https://github.com/amrelsadany/x-link-manager/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/amrelsadany/x-link-manager/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/amrelsadany/x-user-manager/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/amrelsadany/x-user-manager/discussions)
 
 ## 📊 Stats
 
-![GitHub stars](https://img.shields.io/github/stars/amrelsadany/x-link-manager?style=social)
-![GitHub forks](https://img.shields.io/github/forks/amrelsadany/x-link-manager?style=social)
-![GitHub issues](https://img.shields.io/github/issues/amrelsadany/x-link-manager)
-![GitHub license](https://img.shields.io/github/license/amrelsadany/x-link-manager)
+![GitHub stars](https://img.shields.io/github/stars/amrelsadany/x-user-manager?style=social)
+![GitHub forks](https://img.shields.io/github/forks/amrelsadany/x-user-manager?style=social)
+![GitHub issues](https://img.shields.io/github/issues/amrelsadany/x-user-manager)
+![GitHub license](https://img.shields.io/github/license/amrelsadany/x-user-manager)
 
 ---
 
-**Made with ❤️ for managing links across all devices**
+**Made with ❤️ for managing users across all devices**
 
 ⭐ Star this repo if you find it helpful!
