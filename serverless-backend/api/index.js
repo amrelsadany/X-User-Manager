@@ -43,7 +43,7 @@ async function connectToDatabase() {
 // CORS headers helper
 function setCorsHeaders(res, origin) {
   // Allow Chrome extension origins
-  if (origin && origin.startsWith("chrome-extension://")) {
+  if (origin && origin.startsWith('chrome-extension://')) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   } else if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
@@ -51,16 +51,13 @@ function setCorsHeaders(res, origin) {
     // Fallback: allow all origins for API key endpoints
     res.setHeader("Access-Control-Allow-Origin", "*");
   }
-
+  
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS",
   );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-API-Key",
-  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key");
 }
 
 // JWT Authentication Middleware
@@ -90,7 +87,7 @@ function authenticateApiKey(apiKey) {
   return {
     id: "api-key-user",
     source: "api-key",
-    authenticated: true,
+    authenticated: true
   };
 }
 
@@ -183,7 +180,7 @@ module.exports = async (req, res) => {
           title: title ? sanitizeInput(title) : null,
           userId: userId ? sanitizeInput(userId) : null,
           createdAt: new Date(),
-          isRead: false,
+          isRead: false
         };
 
         const result = await usersCollection.insertOne(newUser);
@@ -196,11 +193,9 @@ module.exports = async (req, res) => {
           message: "User created successfully",
           user: insertedUser,
         });
+
       } catch (error) {
-        if (
-          error.message === "API key required" ||
-          error.message === "Invalid API key"
-        ) {
+        if (error.message === "API key required" || error.message === "Invalid API key") {
           return res.status(403).json({ error: error.message });
         }
         throw error;
@@ -224,49 +219,56 @@ module.exports = async (req, res) => {
       if (apiKey) {
         try {
           authenticateApiKey(apiKey);
-
+          
           const result = await usersCollection.findOneAndUpdate(
             { _id: new ObjectId(userId) },
             { $set: { isRead: true, readAt: new Date() } },
             { returnDocument: "after" },
           );
 
-          if (!result.value) {
+          // Handle both old and new MongoDB driver versions
+          const updatedUser = result.value || result;
+
+          if (!updatedUser) {
             return res.status(404).json({ error: "User not found" });
           }
 
           return res.status(200).json({
             message: "User marked as read",
-            user: result.value,
+            user: updatedUser,
           });
         } catch (error) {
           // API key auth failed, continue to JWT check
+          console.error('API key auth error:', error);
         }
-      } else {
-        // Try JWT authentication
-        const authHeader = req.headers["authorization"];
-        const token = authHeader && authHeader.split(" ")[1];
+      }
 
-        try {
-          authenticateToken(token);
+      // Try JWT authentication
+      const authHeader = req.headers["authorization"];
+      const token = authHeader && authHeader.split(" ")[1];
 
-          const result = await usersCollection.findOneAndUpdate(
-            { _id: new ObjectId(userId) },
-            { $set: { isRead: true, readAt: new Date() } },
-            { returnDocument: "after" },
-          );
+      try {
+        authenticateToken(token);
+        
+        const result = await usersCollection.findOneAndUpdate(
+          { _id: new ObjectId(userId) },
+          { $set: { isRead: true, readAt: new Date() } },
+          { returnDocument: "after" },
+        );
 
-          if (!result.value) {
-            return res.status(404).json({ error: "User not found" });
-          }
+        // Handle both old and new MongoDB driver versions
+        const updatedUser = result.value || result;
 
-          return res.status(200).json({
-            message: "User marked as read",
-            user: result.value,
-          });
-        } catch (error) {
-          return res.status(401).json({ error: "Authentication required" });
+        if (!updatedUser) {
+          return res.status(404).json({ error: "User not found" });
         }
+
+        return res.status(200).json({
+          message: "User marked as read",
+          user: updatedUser,
+        });
+      } catch (error) {
+        return res.status(401).json({ error: "Authentication required" });
       }
     }
 
@@ -343,7 +345,8 @@ module.exports = async (req, res) => {
             role: newUser.role,
           },
         });
-      } else {
+      }
+      else{
         res.status(403).json({ error: "Can not register new user" });
       }
     }
@@ -521,13 +524,16 @@ module.exports = async (req, res) => {
         { returnDocument: "after" },
       );
 
-      if (!result.value) {
+      // Handle both old and new MongoDB driver versions
+      const updatedUser = result.value || result;
+
+      if (!updatedUser) {
         return res.status(404).json({ error: "User not found" });
       }
 
       return res.status(200).json({
         message: "User updated successfully",
-        user: result.value,
+        user: updatedUser,
       });
     }
 
