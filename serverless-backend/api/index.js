@@ -1,4 +1,4 @@
-// api/index.js - Serverless backend for Vercel with JWT Authentication
+// api/index.js - Serverless backend for Vercel with JWT Authentication and Chrome Extension CORS support
 const { MongoClient, ObjectId } = require("mongodb");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -42,9 +42,16 @@ async function connectToDatabase() {
 
 // CORS headers helper
 function setCorsHeaders(res, origin) {
-  if (allowedOrigins.includes(origin)) {
+  // Allow Chrome extension origins
+  if (origin && origin.startsWith('chrome-extension://')) {
     res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else {
+    // Fallback: allow all origins for API key endpoints
+    res.setHeader("Access-Control-Allow-Origin", "*");
   }
+  
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -67,7 +74,7 @@ function authenticateToken(token) {
   }
 }
 
-// API Key Authentication (for iOS Shortcut)
+// API Key Authentication (for iOS Shortcut & Chrome Extension)
 function authenticateApiKey(apiKey) {
   if (!apiKey) {
     throw new Error("API key required");
@@ -78,7 +85,7 @@ function authenticateApiKey(apiKey) {
   }
 
   return {
-    id: "ios-shortcut",
+    id: "api-key-user",
     source: "api-key",
     authenticated: true
   };
@@ -135,10 +142,10 @@ module.exports = async (req, res) => {
     const route = pathParts.join("/");
 
     // ============================================
-    // iOS SHORTCUT ROUTE (API Key Authentication)
+    // iOS SHORTCUT / CHROME EXTENSION ROUTE (API Key Authentication)
     // ============================================
 
-    // POST /shortcut/add-user - iOS Shortcut endpoint
+    // POST /shortcut/add-user - iOS Shortcut & Chrome Extension endpoint
     if (route === "shortcut/add-user" && req.method === "POST") {
       const apiKey = req.headers["x-api-key"];
 

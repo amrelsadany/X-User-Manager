@@ -1,60 +1,29 @@
 # Extension Icons
 
-## Required Icons
-
-You need to create 3 icon files:
+You need to create 3 icon files and place them in this folder:
 
 1. **icon16.png** - 16x16 pixels
-2. **icon48.png** - 48x48 pixels  
+2. **icon48.png** - 48x48 pixels
 3. **icon128.png** - 128x128 pixels
 
-## Quick Icon Creation
+## Quick Creation
 
-### Option 1: Use Favicon Generator
+**Option 1: Use Favicon Generator**
+1. Go to: https://favicon.io/favicon-converter/
+2. Upload any image
+3. Download generated icons
+4. Rename:
+   - `favicon-16x16.png` → `icon16.png`
+   - `favicon-32x32.png` → `icon48.png` (resize to 48x48)
+   - `android-chrome-192x192.png` → `icon128.png` (resize to 128x128)
 
-1. Go to https://favicon.io/favicon-converter/
-2. Upload any image (logo, screenshot, etc.)
-3. Generate favicons
-4. Download and rename:
-   - favicon-16x16.png → icon16.png
-   - favicon-32x32.png → resize to 48x48 → icon48.png
-   - android-chrome-192x192.png → resize to 128x128 → icon128.png
-
-### Option 2: Use Canva
-
-1. Go to https://canva.com
-2. Create custom size: 128x128
-3. Design your icon
-4. Download PNG
-5. Resize to create all 3 sizes
-
-### Option 3: Simple Colored Square
-
-Use any image editor to create:
-- Purple/blue gradient square
-- Add "UM" text (User Manager)
-- Export at 3 sizes
-
-## Temporary Icons
-
-For testing, you can use simple colored squares:
-- Create 3 PNG files with solid colors
+**Option 2: Create Colored Squares**
+- Use any image editor
+- Create 3 PNG files with solid color
+- Purple/blue gradient recommended to match UI
 - Name them: icon16.png, icon48.png, icon128.png
-- Place in this folder
 
-## Icon Design Tips
+## For Testing
 
-✅ Simple and recognizable
-✅ Good contrast
-✅ Works at small size (16x16)
-✅ Matches your app branding
-✅ Use PNG format
-✅ Transparent background (optional)
-
-## Recommended Colors
-
-Match the extension UI gradient:
-- Primary: #667eea
-- Secondary: #764ba2
-
-Or use your own brand colors!
+You can use simple colored squares for testing.
+The extension will work without icons, but will show default Chrome icon.

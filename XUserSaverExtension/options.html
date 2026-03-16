@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Link Saver Settings</title>
+  <title>User Manager Settings</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -20,9 +20,15 @@
     }
     
     h1 {
-      margin: 0 0 24px 0;
+      margin: 0 0 8px 0;
       font-size: 24px;
       color: #1f2937;
+    }
+
+    .subtitle {
+      margin: 0 0 24px 0;
+      font-size: 14px;
+      color: #6b7280;
     }
     
     .form-group {
@@ -46,6 +52,11 @@
       box-sizing: border-box;
       font-family: inherit;
     }
+
+    input[type="password"] {
+      font-family: monospace;
+      letter-spacing: 2px;
+    }
     
     input:focus {
       outline: none;
@@ -57,6 +68,16 @@
       font-size: 13px;
       color: #6b7280;
       margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .help-text a {
+      color: #4f46e5;
+      text-decoration: none;
+    }
+
+    .help-text a:hover {
+      text-decoration: underline;
     }
     
     button {
@@ -101,6 +122,12 @@
       color: #065f46;
       border: 1px solid #6ee7b7;
     }
+
+    .error {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
     
     .hidden {
       display: none;
@@ -118,30 +145,68 @@
     .example strong {
       color: #1f2937;
     }
+
+    .example code {
+      background: #e5e7eb;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .info-box {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 24px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .info-box strong {
+      color: #1e3a8a;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>⚙️ Link Saver Settings</h1>
+    <h1>⚙️ User Manager Settings</h1>
+    <p class="subtitle">Configure your API connection</p>
     
     <div id="message" class="message success hidden">Settings saved!</div>
     
     <div class="form-group">
       <label for="apiUrl">API Server URL</label>
-      <input type="text" id="apiUrl" placeholder="http://localhost:3001/api">
+      <input type="text" id="apiUrl" placeholder="https://your-api.vercel.app/api">
       <div class="help-text">
-        The URL of your Link Manager API server.
+        The URL of your User Manager API server.
       </div>
       <div class="example">
         <strong>Examples:</strong><br>
-        • Local: <code>http://localhost:3001/api</code><br>
-        • Remote: <code>https://your-server.com/api</code>
+        • Production: <code>https://your-api.vercel.app/api</code><br>
+        • Local: <code>http://localhost:3001/api</code>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="apiKey">API Key</label>
+      <input type="password" id="apiKey" placeholder="Enter your personal API key">
+      <div class="help-text">
+        Your personal API key from Vercel environment variables.<br>
+        Generate with: <code>openssl rand -hex 32</code><br>
+        Add to Vercel: Settings → Environment Variables → <code>PERSONAL_API_KEY</code>
       </div>
     </div>
     
     <div>
       <button id="saveBtn">Save Settings</button>
-      <button id="resetBtn">Reset to Default</button>
+      <button id="resetBtn">Clear Settings</button>
+    </div>
+
+    <div class="info-box">
+      <strong>🔐 Security:</strong> Your API key is stored securely in Chrome's encrypted storage and only used to authenticate requests to your API. It's never shared with third parties.
     </div>
   </div>
 
