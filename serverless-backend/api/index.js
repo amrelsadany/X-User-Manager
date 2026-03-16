@@ -9,8 +9,9 @@ const DB_NAME = process.env.DB_NAME;
 const USERS_COLLECTION = process.env.USERS_COLLECTION;
 const AUTH_USERS_COLLECTION = "auth_users";
 
-// JWT Secret
+// JWT Secret & API Key
 const JWT_SECRET = process.env.JWT_SECRET;
+const PERSONAL_API_KEY = process.env.PERSONAL_API_KEY; // For iOS Shortcut
 const JWT_EXPIRES_IN = "1d";
 
 // Allowed origins for CORS
@@ -49,7 +50,7 @@ function setCorsHeaders(res, origin) {
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS",
   );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key");
 }
 
 // JWT Authentication Middleware
@@ -64,6 +65,23 @@ function authenticateToken(token) {
   } catch (error) {
     throw new Error("Invalid or expired token");
   }
+}
+
+// API Key Authentication (for iOS Shortcut)
+function authenticateApiKey(apiKey) {
+  if (!apiKey) {
+    throw new Error("API key required");
+  }
+
+  if (apiKey !== PERSONAL_API_KEY) {
+    throw new Error("Invalid API key");
+  }
+
+  return {
+    id: "ios-shortcut",
+    source: "api-key",
+    authenticated: true
+  };
 }
 
 // Input validation
@@ -115,6 +133,67 @@ module.exports = async (req, res) => {
     }
 
     const route = pathParts.join("/");
+
+    // ============================================
+    // iOS SHORTCUT ROUTE (API Key Authentication)
+    // ============================================
+
+    // POST /shortcut/add-user - iOS Shortcut endpoint
+    if (route === "shortcut/add-user" && req.method === "POST") {
+      const apiKey = req.headers["x-api-key"];
+
+      try {
+        // Authenticate API Key
+        const apiUser = authenticateApiKey(apiKey);
+
+        const { url, username, title, userId } = req.body;
+
+        if (!url || !validateUrl(url)) {
+          return res.status(400).json({ error: "Valid URL is required" });
+        }
+
+        // Check for duplicates
+        const existingUser = await usersCollection.findOne({ url });
+
+        if (existingUser) {
+          return res.status(409).json({
+            error: "URL already exists",
+            existingUser: {
+              _id: existingUser._id,
+              url: existingUser.url,
+              username: existingUser.username || existingUser.title,
+            },
+          });
+        }
+
+        // Create new user
+        const newUser = {
+          url: sanitizeInput(url),
+          username: username ? sanitizeInput(username) : null,
+          title: title ? sanitizeInput(title) : null,
+          userId: userId ? sanitizeInput(userId) : null,
+          createdAt: new Date(),
+          isRead: false,
+        };
+
+        const result = await usersCollection.insertOne(newUser);
+        const insertedUser = await usersCollection.findOne({
+          _id: result.insertedId,
+        });
+
+        return res.status(201).json({
+          success: true,
+          message: "User created successfully via iOS Shortcut",
+          user: insertedUser,
+        });
+
+      } catch (error) {
+        if (error.message === "API key required" || error.message === "Invalid API key") {
+          return res.status(403).json({ error: error.message });
+        }
+        throw error;
+      }
+    }
 
     // ============================================
     // AUTH ROUTES
