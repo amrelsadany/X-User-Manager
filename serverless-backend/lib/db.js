@@ -9,7 +9,7 @@ export async function connectDB() {
   }
 
   try {
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/linkmanager';
+    const mongoUri = process.env.MONGODB_URI;
     
     await mongoose.connect(mongoUri, {
       // These options help with serverless cold starts

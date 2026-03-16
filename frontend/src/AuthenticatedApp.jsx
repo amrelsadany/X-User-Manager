@@ -102,7 +102,7 @@ function AuthenticatedApp() {
   const [hoveredButton, setHoveredButton] = useState(null);
 
   const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+    import.meta.env.VITE_API_BASE_URL
 
   useEffect(() => {
     document.body.style.margin = "0";

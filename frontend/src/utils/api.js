@@ -7,11 +7,12 @@ const getApiBaseUrl = () => {
   if (isDevelopment) {
     return "http://localhost:3001/api";
   } else {
-    return import.meta.env.VITE_API_BASE_URL || "https://your-project.vercel.app/api";
+    return import.meta.env.VITE_API_BASE_URL
   }
 };
 
 const API_BASE_URL = getApiBaseUrl();
+export const CAN_REGISTER_USER = import.meta.env.VITE_CAN_REGISTER_USER || 'false';
 
 const secureFetch = async (url, options = {}) => {
   const token = localStorage.getItem("authToken");
