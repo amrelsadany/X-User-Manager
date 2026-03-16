@@ -3,6 +3,7 @@
 // Get settings from storage
 let apiUrl = '';
 let apiKey = '';
+let existingUserId = null; // Store ID of existing user
 
 // Load settings
 async function loadSettings() {
@@ -64,6 +65,7 @@ async function init() {
     // Set form values
     document.getElementById('username').value = username;
     document.getElementById('url').value = currentTab.url;
+    document.getElementById('userId').value = 'Auto-detected';
     
     // Enable save button
     document.getElementById('saveBtn').disabled = false;
@@ -127,31 +129,30 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
       }
       
       if (response.status === 409) {
-        showMessage('This profile already exists in your list!', 'warning');
-        setFormEnabled(true);
+        // User already exists - offer to mark as read
+        existingUserId = data.existingUser?._id;
+        console.log('User exists with ID:', existingUserId);
+        
+        if (markAsRead && existingUserId) {
+          // User wants to mark as read, do it now
+          await markUserAsRead(existingUserId, cleanApiUrl);
+        } else {
+          // Show message with option to mark as read
+          showExistingUserMessage(data.existingUser);
+          setFormEnabled(true);
+        }
         return;
       }
       
       throw new Error(data.error || 'Failed to save profile');
     }
     
+    // New user created successfully
+    const newUserId = data.user?._id;
+    
     // If mark as read is checked, mark it immediately
-    if (markAsRead && data.user && data.user._id) {
-      try {
-        const markResponse = await fetch(`${cleanApiUrl}/users/${data.user._id}/mark-read`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}` // You might need JWT for this endpoint
-          }
-        });
-        
-        if (!markResponse.ok) {
-          console.warn('Profile saved but failed to mark as read');
-        }
-      } catch (markError) {
-        console.warn('Profile saved but failed to mark as read:', markError);
-      }
+    if (markAsRead && newUserId) {
+      await markUserAsRead(newUserId, cleanApiUrl);
     }
     
     // Success
@@ -171,6 +172,77 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     setFormEnabled(true);
   }
 });
+
+// Mark user as read
+async function markUserAsRead(userId, cleanApiUrl) {
+  try {
+    console.log('Marking user as read:', userId);
+    
+    const markResponse = await fetch(`${cleanApiUrl}/users/${userId}/mark-read`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey // Try API key first
+      }
+    });
+    
+    if (markResponse.ok) {
+      console.log('Successfully marked as read');
+      showMessage('✅ Profile marked as read!', 'success');
+      
+      setTimeout(() => {
+        window.close();
+      }, 1500);
+      return true;
+    } else {
+      console.warn('Failed to mark as read:', markResponse.status);
+      showMessage('Profile exists but could not mark as read (may need JWT auth)', 'warning');
+      setFormEnabled(true);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error marking as read:', error);
+    showMessage('Profile exists but could not mark as read', 'warning');
+    setFormEnabled(true);
+    return false;
+  }
+}
+
+// Show message for existing user with mark-as-read option
+function showExistingUserMessage(existingUser) {
+  const messageEl = document.getElementById('message');
+  
+  // Create message with mark-as-read button
+  messageEl.innerHTML = `
+    <div style="margin-bottom: 8px;">
+      ⚠️ Profile already exists: <strong>@${existingUser.username || 'Unknown'}</strong>
+    </div>
+    <button id="markExistingBtn" style="
+      padding: 6px 12px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+    ">
+      Mark as Read
+    </button>
+  `;
+  
+  messageEl.className = 'message warning';
+  messageEl.classList.remove('hidden');
+  
+  // Add click handler for mark as read button
+  document.getElementById('markExistingBtn').addEventListener('click', async () => {
+    if (existingUserId) {
+      setFormEnabled(false);
+      const cleanApiUrl = apiUrl.replace(/\/$/, '');
+      await markUserAsRead(existingUserId, cleanApiUrl);
+    }
+  });
+}
 
 // Cancel button click handler
 document.getElementById('cancelBtn').addEventListener('click', () => {

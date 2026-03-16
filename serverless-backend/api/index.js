@@ -1,4 +1,4 @@
-// api/index.js - Serverless backend for Vercel with JWT Authentication and Chrome Extension CORS support
+// api/index.js - Serverless backend with Chrome Extension CORS support
 const { MongoClient, ObjectId } = require("mongodb");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -11,7 +11,7 @@ const AUTH_USERS_COLLECTION = "auth_users";
 
 // JWT Secret & API Key
 const JWT_SECRET = process.env.JWT_SECRET;
-const PERSONAL_API_KEY = process.env.PERSONAL_API_KEY; // For iOS Shortcut
+const PERSONAL_API_KEY = process.env.PERSONAL_API_KEY;
 const JWT_EXPIRES_IN = "1d";
 
 // Allowed origins for CORS
@@ -190,7 +190,7 @@ module.exports = async (req, res) => {
 
         return res.status(201).json({
           success: true,
-          message: "User created successfully via iOS Shortcut",
+          message: "User created successfully",
           user: insertedUser,
         });
 
@@ -199,6 +199,69 @@ module.exports = async (req, res) => {
           return res.status(403).json({ error: error.message });
         }
         throw error;
+      }
+    }
+
+    // ============================================
+    // MARK-READ ENDPOINT (supports both JWT and API Key)
+    // ============================================
+
+    // POST /users/:id/mark-read - Mark user as read
+    if (route.includes("/mark-read") && req.method === "POST") {
+      const userId = pathParts[pathParts.length - 2];
+
+      if (!ObjectId.isValid(userId)) {
+        return res.status(400).json({ error: "Invalid user ID" });
+      }
+
+      // Try API Key first
+      const apiKey = req.headers["x-api-key"];
+      if (apiKey) {
+        try {
+          authenticateApiKey(apiKey);
+          
+          const result = await usersCollection.findOneAndUpdate(
+            { _id: new ObjectId(userId) },
+            { $set: { isRead: true, readAt: new Date() } },
+            { returnDocument: "after" },
+          );
+
+          if (!result.value) {
+            return res.status(404).json({ error: "User not found" });
+          }
+
+          return res.status(200).json({
+            message: "User marked as read",
+            user: result.value,
+          });
+        } catch (error) {
+          // API key auth failed, continue to JWT check
+        }
+      }
+
+      // Try JWT authentication
+      const authHeader = req.headers["authorization"];
+      const token = authHeader && authHeader.split(" ")[1];
+
+      try {
+        authenticateToken(token);
+        
+        const result = await usersCollection.findOneAndUpdate(
+          { _id: new ObjectId(userId) },
+          { $set: { isRead: true, readAt: new Date() } },
+          { returnDocument: "after" },
+        );
+
+        if (!result.value) {
+          return res.status(404).json({ error: "User not found" });
+        }
+
+        return res.status(200).json({
+          message: "User marked as read",
+          user: result.value,
+        });
+      } catch (error) {
+        return res.status(401).json({ error: "Authentication required" });
       }
     }
 
@@ -460,30 +523,6 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({
         message: "User updated successfully",
-        user: result.value,
-      });
-    }
-
-    // POST /users/:id/mark-read - Mark user as read
-    if (route.includes("/mark-read") && req.method === "POST") {
-      const userId = pathParts[pathParts.length - 2];
-
-      if (!ObjectId.isValid(userId)) {
-        return res.status(400).json({ error: "Invalid user ID" });
-      }
-
-      const result = await usersCollection.findOneAndUpdate(
-        { _id: new ObjectId(userId) },
-        { $set: { isRead: true, readAt: new Date() } },
-        { returnDocument: "after" },
-      );
-
-      if (!result.value) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      return res.status(200).json({
-        message: "User marked as read",
         user: result.value,
       });
     }
