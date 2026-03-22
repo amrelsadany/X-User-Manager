@@ -154,6 +154,7 @@ module.exports = async (req, res) => {
         const apiUser = authenticateApiKey(apiKey);
 
         const { url, username, title, userId } = req.body;
+        console.info(req.body);
 
         if (!url || !validateUrl(url)) {
           return res.status(400).json({ error: "Valid URL is required" });
@@ -210,6 +211,8 @@ module.exports = async (req, res) => {
     if (route.includes("/mark-read") && req.method === "POST") {
       const userId = pathParts[pathParts.length - 2];
 
+      console.info(userId);
+      
       if (!ObjectId.isValid(userId)) {
         return res.status(400).json({ error: "Invalid user ID" });
       }
