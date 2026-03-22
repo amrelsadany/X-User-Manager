@@ -212,7 +212,7 @@ module.exports = async (req, res) => {
       const userId = pathParts[pathParts.length - 2];
 
       console.info(userId);
-      
+
       if (!ObjectId.isValid(userId)) {
         return res.status(400).json({ error: "Invalid user ID" });
       }
@@ -239,6 +239,7 @@ module.exports = async (req, res) => {
           return res.status(200).json({
             message: "User marked as read",
             user: updatedUser,
+            success: true
           });
         } catch (error) {
           // API key auth failed, continue to JWT check
