@@ -44,20 +44,22 @@ export default function UserTableRow({
       </td>
       <td style={{ ...tableStyles.td, textAlign: 'center' }}>
         <div style={tableStyles.actionButtons}>
-          <button
-            onClick={() => onMarkAsRead(user)}
-            style={{
-              ...tableStyles.iconButton,
-              ...tableStyles.markButton,
-              ...(hoveredButton === `mark-${user._id}` ? tableStyles.markButtonHover : {}),
-            }}
-            onMouseEnter={() => setHoveredButton(`mark-${user._id}`)}
-            onMouseLeave={() => setHoveredButton(null)}
-            title="Mark as read"
-          >
-            <CheckCircle size={18} />
-            Mark as Read
-          </button>
+          {onMarkAsRead && (
+            <button
+              onClick={() => onMarkAsRead(user)}
+              style={{
+                ...tableStyles.iconButton,
+                ...tableStyles.markButton,
+                ...(hoveredButton === `mark-${user._id}` ? tableStyles.markButtonHover : {}),
+              }}
+              onMouseEnter={() => setHoveredButton(`mark-${user._id}`)}
+              onMouseLeave={() => setHoveredButton(null)}
+              title="Mark as read"
+            >
+              <CheckCircle size={18} />
+              Mark as Read
+            </button>
+          )}
           <button
             onClick={() => onEdit(user)}
             style={{

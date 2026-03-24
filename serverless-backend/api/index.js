@@ -153,7 +153,7 @@ module.exports = async (req, res) => {
         // Authenticate API Key
         const apiUser = authenticateApiKey(apiKey);
 
-        const { url, username, title, userId } = req.body;
+        const { url, username, title, userId, isRead } = req.body;
         console.info(req.body);
 
         if (!url || !validateUrl(url)) {
@@ -181,7 +181,7 @@ module.exports = async (req, res) => {
           title: title ? sanitizeInput(title) : null,
           userId: userId ? sanitizeInput(userId) : null,
           createdAt: new Date(),
-          isRead: false
+          isRead: isRead !== undefined ? Boolean(isRead) : false
         };
 
         const result = await usersCollection.insertOne(newUser);
@@ -455,6 +455,16 @@ module.exports = async (req, res) => {
       const users = await usersCollection
         .find({ isRead: { $ne: true } })
         .sort({ createdAt: -1 })
+        .toArray();
+
+      return res.status(200).json(users);
+    }
+
+     // GET /users/read - Get all read users
+    if (route === "users/read" && req.method === "GET") {
+      const users = await usersCollection
+        .find({ isRead: true })
+        .sort({ readAt: -1 })
         .toArray();
 
       return res.status(200).json(users);

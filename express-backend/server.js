@@ -429,6 +429,24 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+// Get all read users
+app.get("/api/users/read", async (req, res) => {
+  try {
+    const readUsers = await usersCollection
+      .find({
+        isRead: true,
+      })
+      .sort({ readAt: -1 })
+      .limit(1000)
+      .toArray();
+
+    res.json(readUsers);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
 // Get all users
 app.get("/api/users/all", async (req, res) => {
   try {

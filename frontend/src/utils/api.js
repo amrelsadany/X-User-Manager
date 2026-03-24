@@ -11,7 +11,7 @@ const getApiBaseUrl = () => {
   }
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
 export const CAN_REGISTER_USER = import.meta.env.VITE_CAN_REGISTER_USER || 'false';
 
 const secureFetch = async (url, options = {}) => {
@@ -61,6 +61,18 @@ export const fetchUsers = async () => {
   }
   
   return response.json();
+};
+
+export const fetchReadUsers = async () => {
+  const response = await secureFetch(`${API_BASE_URL}/users/read`);
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to fetch users');
+  }
+  
+  return response.json();
+  
 };
 
 export const markUserAsRead = async (userId) => {

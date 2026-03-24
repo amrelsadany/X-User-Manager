@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { LogIn, UserPlus, Eye, EyeOff, Lock, Mail } from "lucide-react";
-import {CAN_REGISTER_USER} from "./utils/api";
+import {CAN_REGISTER_USER, API_BASE_URL} from "./utils/api";
 
 const styles = {
   container: {
@@ -194,8 +194,6 @@ function Login({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const [focusedInput, setFocusedInput] = useState(null);
   const [hoveredButton, setHoveredButton] = useState(null);
-
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

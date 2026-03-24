@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Login from "./Login";
 import App from "./App";
 import { LogOut, User, RefreshCw } from "lucide-react";
+import {API_BASE_URL} from "./utils/api";
 
 const styles = {
   navbar: {
@@ -100,9 +101,6 @@ function AuthenticatedApp() {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hoveredButton, setHoveredButton] = useState(null);
-
-  const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL
 
   useEffect(() => {
     document.body.style.margin = "0";

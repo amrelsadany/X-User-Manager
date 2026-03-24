@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { RefreshCw } from "lucide-react";
 
 // Components
@@ -19,6 +19,8 @@ import * as api from "./utils/api";
 
 function App({ onAuthError }) {
   const [users, setUsers] = useState([]);
+  const [readUsers, setReadUsers] = useState([]);
+  const [viewMode, setViewMode] = useState('unread');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hoveredButton, setHoveredButton] = useState(null);
@@ -49,12 +51,7 @@ function App({ onAuthError }) {
     };
   }, []);
 
-  // Load users on mount
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -69,13 +66,43 @@ function App({ onAuthError }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [onAuthError]);
 
-  // Pagination calculations
+  const loadReadUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.fetchReadUsers();
+      setReadUsers(data);
+    } catch (err) {
+      if (err.message === "AUTHENTICATION_REQUIRED") {
+        if (onAuthError) onAuthError();
+        return;
+      }
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [onAuthError]);
+
+  // Load data when view changes
+  useEffect(() => {
+    const load = async () => {
+      if (viewMode === 'read') {
+        await loadReadUsers();
+      } else {
+        await loadUsers();
+      }
+    };
+
+    load();
+  }, [viewMode, loadUsers, loadReadUsers]);
+
+  const displayedUsers = viewMode === 'read' ? readUsers : users;
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentUsers = users.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const currentUsers = displayedUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(displayedUsers.length / itemsPerPage);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -103,7 +130,12 @@ function App({ onAuthError }) {
       <div style={styles.maxWidth}>
         {/* Header */}
         <Header
-          usersCount={users.length}
+          usersCount={displayedUsers.length}
+          viewMode={viewMode}
+          onViewModeChange={(mode) => {
+            setViewMode(mode);
+            setCurrentPage(1);
+          }}
           onAddClick={() => setShowAddModal(true)}
           hoveredButton={hoveredButton}
           setHoveredButton={setHoveredButton}
@@ -113,7 +145,7 @@ function App({ onAuthError }) {
         {error && <div style={styles.errorBox}>{error}</div>}
 
         {/* Empty state or table */}
-        {users.length === 0 ? (
+        {displayedUsers.length === 0 ? (
           <EmptyState />
         ) : (
           <>
@@ -125,7 +157,7 @@ function App({ onAuthError }) {
               setHoveredButton={setHoveredButton}
               hoveredUrl={hoveredUrl}
               setHoveredUrl={setHoveredUrl}
-              onMarkAsRead={(user) => setMarkingAsReadUser(user)}
+              onMarkAsRead={viewMode === 'unread' ? (user) => setMarkingAsReadUser(user) : undefined}
               onEdit={(user) => setEditingUser(user)}
               onDelete={(user) => setDeletingUser(user)}
             />
@@ -135,7 +167,7 @@ function App({ onAuthError }) {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 itemsPerPage={itemsPerPage}
-                totalItems={users.length}
+                totalItems={displayedUsers.length}
                 onPageChange={handlePageChange}
                 hoveredButton={hoveredButton}
                 setHoveredButton={setHoveredButton}
