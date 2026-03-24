@@ -184,6 +184,10 @@ module.exports = async (req, res) => {
           isRead: isRead !== undefined ? Boolean(isRead) : false
         };
 
+        if(newUser.isRead){
+          newUser.readAt = new Date();
+        }
+
         const result = await usersCollection.insertOne(newUser);
         const insertedUser = await usersCollection.findOne({
           _id: result.insertedId,
